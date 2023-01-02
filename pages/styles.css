@@ -1,4 +1,4 @@
-@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700;800&display=swap");
 
 @tailwind base;
 @tailwind components;
@@ -7,13 +7,16 @@
 body {
   margin: 0;
   padding: 0;
-  font-family: "Manrope", sans-serif;
+  font-family: "Inter", sans-serif;
 }
 
+.manrope {
+  font-family: "Manrope", sans-serif;
+}
 .container {
   gap: 10px;
   height: fit-content;
-  max-width: 975px;
+  max-width: 1200px;
   overflow: auto;
   padding: 50px;
   position: relative;
