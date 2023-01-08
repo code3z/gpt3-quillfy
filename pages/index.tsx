@@ -1,22 +1,27 @@
+"use client"
+
 import Head from "next/head"
-import { DOMAttributes, useState } from "react"
+import { DOMAttributes, useEffect, useRef, useState } from "react"
 import React from "react"
+import clsx from "clsx"
+import { useLocalStorage } from "../lib/useLocalStorage"
+import TextEditor from "../components/TextEditor"
 
 const Home = () => {
-  const [text, setText] = useState("")
   const [textUsed, setTextUsed] = useState("")
-  const [prompt, setPrompt] = useState("")
+  const [prompt, setPrompt] = useLocalStorage("APP_PROMPT", "")
+  const [text, setText] = useLocalStorage("APP_TEXT", "")
   const [apiOutput, setApiOutput] = useState({ edits: [] })
   const [isGenerating, setIsGenerating] = useState(false)
-  const [selectedEdit, setSelectedEdit] = useState(0)
-
+  const [selectedEdit, setSelectedEdit] = useState(null)
+  const textBody = useRef<HTMLDivElement>()
   const handleSubmit: DOMAttributes<HTMLFormElement>["onSubmit"] = async (
     e
   ) => {
     e.preventDefault()
     setIsGenerating(true)
     setTextUsed(text)
-    setSelectedEdit(0)
+    setSelectedEdit(null)
 
     console.log("Calling OpenAI...")
     const response = await fetch("/api/generate", {
@@ -34,6 +39,32 @@ const Home = () => {
     setApiOutput(data)
     setIsGenerating(false)
   }
+  useEffect(() => {
+    if (textBody.current)
+      for (const edit of apiOutput.edits) {
+        try {
+          console.log(textBody.current, textUsed, edit.original)
+
+          const range = new Range()
+          const textIndex = textBody.current.lastChild.textContent.indexOf(
+            edit.original
+          )
+          if (textIndex !== -1) {
+            range.setStart(textBody.current.lastChild, textIndex)
+            range.setEnd(
+              textBody.current.lastChild,
+              textIndex + edit.original.length
+            )
+            const button = document.createElement("mark")
+            button.onclick = () => alert("haha")
+            button.classList.add("bg-blue-100", "rounded-sm")
+            range.surroundContents(button)
+          }
+        } catch (e) {
+          console.log(e)
+        }
+      }
+  }, [apiOutput, textBody])
 
   return (
     <div className="root">
@@ -85,20 +116,29 @@ const Home = () => {
           </div>
         </form>
         <div className="grid grid-cols-[2fr_1fr] gap-6 mt-8">
-          <div className="leading-7 whitespace-pre-wrap">{textUsed}</div>
+          <div className="leading-7 whitespace-pre-wrap" ref={textBody}>
+            {textUsed} <TextEditor />
+          </div>
           <div>
             {isGenerating
               ? "getting high-quality feedback..."
               : apiOutput.edits.map((edit, i) => (
-                  <div key={i} className="mb-8 p-4 shadow-md border rounded-lg">
+                  <button
+                    key={i}
+                    className={clsx(
+                      `mb-8 p-4 shadow-md border rounded-xl text-left`,
+                      selectedEdit === i && "bg-gray-50 border-2"
+                    )}
+                    onClick={() => setSelectedEdit(i)}
+                  >
                     <p className="text-sm line-through text-gray-600">
                       {edit.original}
                     </p>
                     <p>{edit.edit}</p>
                     <p className="text-sm text-gray-800 font-semibold mt-1">
-                      {edit.suggestion}
+                      {selectedEdit === i && edit.suggestion}
                     </p>
-                  </div>
+                  </button>
                 ))}
           </div>
         </div>
@@ -108,3 +148,16 @@ const Home = () => {
 }
 
 export default Home
+
+/**
+ * const textToSelect = `the Editor component` 
+ * Array.from($0.childNodes).map(e => e.textContent).reduce(
+(accumulator, currentValue, index) => {
+if (start < accumulator + currentValue.length && start > accumulator) console.log('start at', currentValue, index)
+if (end < accumulator + currentValue.length && end > accumulator) console.log('end at', currentValue, index, end - accumulator)
+
+accumulator += currentValue.length
+return accumulator
+}, 0
+)
+ */

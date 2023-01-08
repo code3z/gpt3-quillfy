@@ -11,15 +11,21 @@
   "dependencies": {
     "@emotion/react": "^11.10.5",
     "@emotion/styled": "^11.10.5",
+    "@tinymce/tinymce-react": "^4.2.0",
+    "clsx": "^1.2.1",
+    "draft-js": "^0.11.7",
     "eslint": "8.27.0",
     "eslint-config-next": "13.0.3",
     "framer-motion": "^6.5.1",
     "next": "^13.1.0",
     "openai": "^3.1.0",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "slate": "^0.87.0",
+    "slate-react": "^0.88.0"
   },
   "devDependencies": {
+    "@types/draft-js": "^0.11.10",
     "@types/react": "18.0.26",
     "autoprefixer": "^10.4.13",
     "postcss": "^8.4.20",
