@@ -1,13 +1,10 @@
 import React, { useEffect, useRef, useState } from "react"
 import { Editor } from "@tinymce/tinymce-react"
+import { useLocalStorage } from "../lib/useLocalStorage"
 
 const textToSelect = "the quick brown fox"
 
-const getRangeDataFromElement = (
-  el: HTMLElement,
-  start: number,
-  end: number
-) => {
+const getRangeDataFromElement = (el: ChildNode, start: number, end: number) => {
   const rangeData = {
     endNode: null,
     endOffset: null,
@@ -17,10 +14,28 @@ const getRangeDataFromElement = (
   Array.from(el.childNodes)
     .map((e) => e.textContent)
     .reduce<number>((accumulator, currentValue, index) => {
+      console.log(
+        accumulator,
+        currentValue,
+        index,
+        el.childNodes[index],
+        start,
+        end
+      )
       if (start < accumulator + currentValue.length && start > accumulator) {
         console.log("start at", currentValue, index)
-        rangeData.startNode = index
-        rangeData.startOffset = start - accumulator
+        if (el.childNodes[index].nodeType === 3) {
+          rangeData.startNode = el.childNodes[index]
+          rangeData.startOffset = start - accumulator
+        } else {
+          const trueRangeData = getRangeDataFromElement(
+            el.childNodes[index],
+            start - accumulator,
+            currentValue.length
+          )
+          rangeData.startNode = trueRangeData.startNode
+          rangeData.startOffset = trueRangeData.startOffset
+        }
       }
       if (end < accumulator + currentValue.length && end > accumulator) {
         console.log("end at", currentValue, index, end - accumulator)
@@ -37,14 +52,24 @@ const getRangeDataFromElement = (
           rangeData.endOffset = trueRangeData.endOffset
         }
       }
+      return accumulator + currentValue.length
     }, 0)
   return rangeData
 }
-export default function TextEditor() {
+export default function TextEditor({
+  text,
+  setText,
+  edits,
+}: {
+  text: string
+  setText: (text: string) => void
+  edits: { original: string; suggestion: string; edit: string }[]
+}) {
   const [editorRef, setEditorRef] = useState(null)
   const [editOverlayInitialized, setEditOverlayInitialized] = useState(false)
   const [editorContent, setEditorContent] = useState("")
   const overlayDiv = useRef<HTMLElement>(null)
+  const [initialText] = useState(text)
 
   const log = () => {
     if (editorRef) {
@@ -58,7 +83,7 @@ export default function TextEditor() {
     console.log(editIframe)
     if (editIframe) {
       const overlayWrapper = document.createElement("suggestion-highlighter")
-      overlayWrapper.style.display = "none"
+      //overlayWrapper.style.display = "none"
       const div = document.createElement("div")
       overlayWrapper.appendChild(div)
       overlayDiv.current = div
@@ -70,6 +95,7 @@ export default function TextEditor() {
       })
       div.style.display = "block"
       div.style.zIndex = "9999"
+      div.style.lineHeight = "1.4"
       // put margin on only the sides
       div.style.margin = "0 1rem"
       // there's a small offset on tinyMCE
@@ -78,28 +104,63 @@ export default function TextEditor() {
       div.style.position = "absolute"
       div.style.top = "0"
       div.style.left = "0"
+      div.style.color = "transparent"
       editIframe.contentDocument.documentElement.appendChild(overlayWrapper)
       setEditOverlayInitialized(true)
     }
   }
   const onChange = () => {
     if (overlayDiv.current) {
-      try {
-        overlayDiv.current.innerHTML = editorContent
+      // loop over each edit and highlight text
+      for (const edit of edits) {
+        try {
+          const textToSelect = edit.original
+          overlayDiv.current.innerHTML = editorContent
 
-        const start = editorContent.indexOf(textToSelect)
-        const end = start + textToSelect.length
-        // const range = new Range()
+          const start = overlayDiv.current.textContent.indexOf(textToSelect)
+          const end = start + textToSelect.length
+          // const range = new Range()
 
-        const rangeData = getRangeDataFromElement(
-          overlayDiv.current,
-          start,
-          end
-        )
-        console.log("rangeData", rangeData)
-        // range.surroundContents(document.createElement("mark"))
-      } catch (e) {
-        console.log(e)
+          const rangeData = getRangeDataFromElement(
+            overlayDiv.current,
+            start,
+            end
+          )
+          const range = new Range()
+          range.setStart(rangeData.startNode, rangeData.startOffset)
+          range.setEnd(rangeData.endNode, rangeData.endOffset)
+          console.log("range", range)
+          const mark = document.createElement("mark")
+          mark.style.backgroundColor = "#ffff0082"
+          mark.style.borderBottom = "1px solid yellow"
+          const editIframe = document.querySelector(
+            ".tox-edit-area iframe.tox-edit-area__iframe"
+          ) as HTMLIFrameElement
+
+          editIframe.contentDocument.body.onclick = () => {
+            const rangeData = getRangeDataFromElement(
+              editIframe.contentDocument.body,
+              start,
+              end
+            )
+            const editorRange = new Range()
+            editorRange.setStart(rangeData.startNode, rangeData.startOffset)
+            editorRange.setEnd(rangeData.endNode, rangeData.endOffset)
+            console.log("editorrange", editorRange)
+
+            if (
+              editorRange.comparePoint(
+                editIframe.contentWindow.getSelection().anchorNode,
+                editIframe.contentWindow.getSelection().anchorOffset
+              ) === 0
+            ) {
+              alert("clicked")
+            }
+          }
+          range.surroundContents(mark)
+        } catch (e) {
+          console.log(e)
+        }
       }
     }
   }
@@ -113,10 +174,11 @@ export default function TextEditor() {
           setEditorRef(editor)
           if (!editOverlayInitialized) initializeEditOverlay()
         }}
-        initialValue={""}
+        initialValue={initialText}
         onKeyUp={(evt, editor) => {
           console.log(editor.getContent())
           setEditorContent(editor.getContent())
+          setText(editor.getContent())
         }}
         init={{
           height: 500,
@@ -151,7 +213,6 @@ export default function TextEditor() {
           statusbar: false,
         }}
       />
-      <button onClick={log}>Log editor content</button>
     </>
   )
 }
