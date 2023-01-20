@@ -1,34 +1,51 @@
 import { NextApiHandler } from "next"
 import { Configuration, OpenAIApi } from "openai"
 
-function parseEdits(text: string) {
-  const edits = text.split("\n")
-  let currentEdit = 0
-  const parsedEdits = []
-
-  for (const line of edits) {
-    console.log(line, currentEdit)
-    if (line.startsWith("Edit #")) {
-      currentEdit = parseInt(line.match(/Edit #(\d+):/)[1])
-      parsedEdits[currentEdit] = {}
-      const textWithTrailingQuote = line.split("Original Text - ")[1]
-      const lastQuoteIndex = textWithTrailingQuote.lastIndexOf(`"`)
-      const firstQuoteIndex = textWithTrailingQuote.indexOf(`"`)
-      parsedEdits[currentEdit].original = textWithTrailingQuote.slice(
-        firstQuoteIndex + 1,
-        lastQuoteIndex
-      )
-    }
-    if (line.startsWith("Edited Text")) {
-      const textWithTrailingQuote = line.split('Edited Text - "')[1]
-      const quoteIndex = textWithTrailingQuote.lastIndexOf(`"`)
-      parsedEdits[currentEdit].edit = textWithTrailingQuote.slice(0, quoteIndex)
-    }
-    if (line.startsWith("Suggestion:")) {
-      parsedEdits[currentEdit].suggestion = line.split("Suggestion: ")[1]
-    }
+const editFilter = (edit) => {
+  if (!edit) return false
+  if (edit.original && edit.edit && edit.suggestion) {
+    return true
   }
-  return parsedEdits.filter((edit) => edit)
+  return false
+}
+
+function parseEdits(text: string) {
+  const parsedEdits = []
+  try {
+    const edits = text.split("\n")
+    let currentEdit = 0
+
+    for (const line of edits) {
+      console.log(line, currentEdit)
+      if (line.startsWith("Edit #")) {
+        currentEdit = parseInt(line.match(/Edit #(\d+):/)[1])
+        parsedEdits[currentEdit] = {}
+        const textWithTrailingQuote = line.split("Original Text - ")[1]
+        const lastQuoteIndex = textWithTrailingQuote.lastIndexOf(`"`)
+        const firstQuoteIndex = textWithTrailingQuote.indexOf(`"`)
+        parsedEdits[currentEdit].original = textWithTrailingQuote.slice(
+          firstQuoteIndex + 1,
+          lastQuoteIndex
+        )
+      }
+      if (line.startsWith("Edited Text")) {
+        const textWithTrailingQuote = line.split('Edited Text - "')[1]
+        if (!textWithTrailingQuote) continue
+        const quoteIndex = textWithTrailingQuote.lastIndexOf(`"`)
+        parsedEdits[currentEdit].edit = textWithTrailingQuote.slice(
+          0,
+          quoteIndex
+        )
+      }
+      if (line.startsWith("Suggestion:")) {
+        parsedEdits[currentEdit].suggestion = line.split("Suggestion: ")[1]
+      }
+    }
+    return parsedEdits.filter(editFilter)
+  } catch (e) {
+    console.error(e)
+    return parsedEdits.filter(editFilter)
+  }
 }
 
 const configuration = new Configuration({
@@ -131,7 +148,7 @@ const generateAction: NextApiHandler = async (req, res) => {
   }
 
   // Run first prompt
-  console.log(`API: ${basePromptPrefix(req.body.prompt, req.body.text)}`)
+  // console.log(`API: ${basePromptPrefix(req.body.prompt, req.body.text)}`)
 
   const baseCompletion = await openai.createCompletion({
     model: "text-davinci-003",
@@ -141,8 +158,9 @@ const generateAction: NextApiHandler = async (req, res) => {
   })
 
   const basePromptOutput = baseCompletion.data.choices.pop()
-
+  console.log("OpenAI replied", basePromptOutput)
   res.status(200).json({
+    test: "test",
     output: basePromptOutput,
     edits: parseEdits(basePromptOutput.text),
   })

@@ -3,7 +3,16 @@ import { DOMAttributes, useEffect, useRef, useState } from "react"
 import React from "react"
 import clsx from "clsx"
 import { useLocalStorage } from "../lib/useLocalStorage"
-import TextEditor from "../components/TextEditor"
+import { Button, Input, useToasts } from "@geist-ui/core"
+import Skeleton from "react-loading-skeleton"
+import "react-loading-skeleton/dist/skeleton.css"
+
+import dynamic from "next/dynamic"
+
+const TextEditor = dynamic(() => import("../components/TextEditor"), {
+  ssr: false,
+  loading: () => <>Loading Editor...</>,
+})
 
 function getRawText(htmlText: string) {
   const el = document.createElement("div")
@@ -15,34 +24,57 @@ const Home = () => {
   const [textUsed, setTextUsed] = useState("")
   const [prompt, setPrompt] = useLocalStorage("APP_PROMPT", "")
   const [text, setText] = useLocalStorage("APP_TEXT", "")
-  const [apiOutput, setApiOutput] = useState({ edits: [] })
+  const [apiOutput, setApiOutput] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedEdit, setSelectedEdit] = useState(null)
   const textBody = useRef<HTMLDivElement>()
+  const { setToast } = useToasts()
 
+  const showError = () => {
+    setToast({
+      text: "There was an error editing text, try again",
+      type: "warning",
+      actions: [
+        {
+          name: "cancel",
+          passive: true,
+          handler: (event, cancel) => cancel(),
+        },
+      ],
+    })
+    setIsGenerating(false)
+  }
   const handleSubmit: DOMAttributes<HTMLButtonElement>["onClick"] = async (
     e
   ) => {
-    setIsGenerating(true)
-    setTextUsed(text)
-    setSelectedEdit(null)
-    const rawText = getRawText(text)
-    console.log("Calling OpenAI...")
+    try {
+      setIsGenerating(true)
+      setTextUsed(text)
+      setSelectedEdit(null)
+      const rawText = getRawText(text)
+      console.log("Calling OpenAI...")
 
-    const response = await fetch("/api/generate", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ text: rawText, prompt }),
-    })
+      const response = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text: rawText, prompt }),
+      })
+      if (response.status !== 200) {
+        showError()
+        return
+      }
+      const data = await response.json()
+      const { output } = data
+      console.log("OpenAI replied...", output.text)
 
-    const data = await response.json()
-    const { output } = data
-    console.log("OpenAI replied...", output.text)
-
-    setApiOutput(data)
-    setIsGenerating(false)
+      setApiOutput(data)
+      setIsGenerating(false)
+    } catch (e) {
+      console.log(e)
+      showError()
+    }
   }
 
   useEffect(() => {
@@ -84,89 +116,72 @@ const Home = () => {
             <h2>Get writing feedback from an expert AI</h2>
           </div>
         </div>
-        <label
-          htmlFor="text-input"
-          className="font-semibold text-gray-700 mb-1 block manrope"
-        >
-          What do you want to improve?
-        </label>
-        <input
-          id="text-input"
-          className="bg-gray-100 rounded-xl p-4 w-full"
-          value={prompt}
-          placeholder="Paste here..."
-          onChange={(e) => setPrompt(e.target.value)}
-        />
-        <label
-          htmlFor="user-input"
-          className="font-semibold text-gray-700 mb-1 block mt-4 manrope"
-        >
-          Enter text
-        </label>
-        <div className="grid grid-cols-[2fr_1fr] gap-4">
-          <TextEditor text={text} setText={setText} edits={apiOutput.edits} />
-          <div>
-            {isGenerating
-              ? "getting high-quality feedback..."
-              : apiOutput.edits.map((edit, i) => (
-                  <button
-                    key={i}
-                    className={clsx(
-                      `mb-8 p-4 shadow-md border rounded-xl text-left`,
-                      selectedEdit === i && "bg-gray-50 border-2"
-                    )}
-                    onClick={() => setSelectedEdit(i)}
-                  >
-                    <p className="text-sm line-through text-gray-600">
-                      {edit.original}
-                    </p>
-                    <p>{edit.edit}</p>
-                    <p className="text-sm text-gray-800 font-semibold mt-1">
-                      {selectedEdit === i && edit.suggestion}
-                    </p>
-                  </button>
-                ))}
-          </div>
-          <div className="prompt-buttons mt-3">
-            <button
-              className="generate-button"
-              onClick={handleSubmit}
-              disabled={isGenerating}
-            >
-              {isGenerating ? (
-                <span className="loader"></span>
-              ) : (
-                <p>Get Free Suggestions</p>
-              )}
-            </button>
-          </div>
-        </div>
 
-        <div className="grid grid-cols-[2fr_1fr] gap-6 mt-8">
-          <div className="leading-7 whitespace-pre-wrap" ref={textBody}>
-            {textUsed}
+        <div
+          className={clsx(
+            `grid gap-4`,
+            (apiOutput && apiOutput.edits) || isGenerating
+              ? "md:grid-cols-[2fr_1fr]"
+              : ""
+          )}
+        >
+          <TextEditor
+            text={text}
+            setText={setText}
+            edits={apiOutput ? apiOutput.edits : []}
+            setSelectedEdit={setSelectedEdit}
+          />
+          <div>
+            {isGenerating ? (
+              <div className="text-gray-800">
+                generating edits, this can take a while...{" "}
+                <Skeleton height={150} count={3} />
+              </div>
+            ) : (
+              apiOutput &&
+              apiOutput.edits.map((edit, i) => (
+                <button
+                  key={i}
+                  className={clsx(
+                    `mb-8 p-4 shadow-md border rounded-xl text-left`,
+                    selectedEdit === i && "bg-gray-50 border-2 border-blue-300"
+                  )}
+                  onClick={() => setSelectedEdit(i)}
+                >
+                  <p className="text-sm line-through text-gray-600">
+                    {edit.original}
+                  </p>
+                  <p>{edit.edit}</p>
+                  <p className="text-sm text-gray-800 font-semibold mt-1">
+                    {selectedEdit === i && edit.suggestion}
+                  </p>
+                </button>
+              ))
+            )}
           </div>
           <div>
-            {isGenerating
-              ? "getting high-quality feedback..."
-              : apiOutput.edits.map((edit, i) => (
-                  <button
-                    key={i}
-                    className={clsx(
-                      `mb-8 p-4 shadow-md border rounded-xl text-left`,
-                      selectedEdit === i && "bg-gray-50 border-2"
-                    )}
-                    onClick={() => setSelectedEdit(i)}
-                  >
-                    <p className="text-sm line-through text-gray-600">
-                      {edit.original}
-                    </p>
-                    <p>{edit.edit}</p>
-                    <p className="text-sm text-gray-800 font-semibold mt-1">
-                      {selectedEdit === i && edit.suggestion}
-                    </p>
-                  </button>
-                ))}
+            <div>
+              <Input
+                value={prompt}
+                placeholder="make it more professional"
+                scale={4 / 3}
+                onChange={(e) => setPrompt(e.target.value)}
+              >
+                What do you want to improve?
+              </Input>
+            </div>
+            <div className="flex">
+              <Button
+                auto
+                onClick={handleSubmit}
+                type="success"
+                className="!mt-5 !ml-auto"
+                loading={isGenerating}
+                disabled={isGenerating}
+              >
+                Get Feedback
+              </Button>
+            </div>
           </div>
         </div>
       </div>
