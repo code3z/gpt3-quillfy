@@ -20,22 +20,28 @@ function parseEdits(text: string) {
       if (line.startsWith("Edit #")) {
         currentEdit = parseInt(line.match(/Edit #(\d+):/)[1])
         parsedEdits[currentEdit] = {}
-        const textWithTrailingQuote = line.split("Original Text - ")[1]
+        const textWithTrailingQuote =
+          line.split("Original Text - ")[1] || line.split("Original Text: ")[1]
         const lastQuoteIndex = textWithTrailingQuote.lastIndexOf(`"`)
         const firstQuoteIndex = textWithTrailingQuote.indexOf(`"`)
+        if (firstQuoteIndex === -1 && lastQuoteIndex === -1) {
+          parsedEdits[currentEdit].original = textWithTrailingQuote
+          continue
+        }
         parsedEdits[currentEdit].original = textWithTrailingQuote.slice(
           firstQuoteIndex + 1,
           lastQuoteIndex
         )
       }
       if (line.startsWith("Edited Text")) {
-        const textWithTrailingQuote = line.split('Edited Text - "')[1]
+        const textWithTrailingQuote =
+          line.split('Edited Text - "')[1] || line.split('Edited Text: "')[1]
         if (!textWithTrailingQuote) continue
         const quoteIndex = textWithTrailingQuote.lastIndexOf(`"`)
-        parsedEdits[currentEdit].edit = textWithTrailingQuote.slice(
-          0,
-          quoteIndex
-        )
+        parsedEdits[currentEdit].edit =
+          quoteIndex !== -1
+            ? textWithTrailingQuote.slice(0, quoteIndex)
+            : textWithTrailingQuote
       }
       if (line.startsWith("Suggestion:")) {
         parsedEdits[currentEdit].suggestion = line.split("Suggestion: ")[1]
@@ -132,7 +138,7 @@ Suggestion: Consider changing "unique" to "one-of-a-kind" in order to make it mo
 
 END
 
-Prompt: Rewrite this text to ${prompt}. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order. Do not list edits if nothing changed.
+Prompt: Rewrite this text to ${prompt}. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order. Do not list edits if nothing changed. If listing an edit where something is being added and it does not have original text, write "Add after <preceding text>" for the original text.
 
 Original Text:
 ${text}

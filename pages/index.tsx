@@ -3,16 +3,21 @@ import { DOMAttributes, useEffect, useRef, useState } from "react"
 import React from "react"
 import clsx from "clsx"
 import { useLocalStorage } from "../lib/useLocalStorage"
-import { Button, Input, useToasts } from "@geist-ui/core"
+import { Button, Input, Tooltip, useToasts } from "@geist-ui/core"
 import Skeleton from "react-loading-skeleton"
 import "react-loading-skeleton/dist/skeleton.css"
+import TextEditor from "../components/TextEditor"
+import Image from "next/image"
+import feather from "public/feather.svg"
 
-import dynamic from "next/dynamic"
-
-const TextEditor = dynamic(() => import("../components/TextEditor"), {
-  ssr: false,
-  loading: () => <>Loading Editor...</>,
-})
+const tips = [
+  `Make a clear prompt that someone could understand if they read "Rewrite this text to <your prompt>"`,
+  `If you need to make your writing longer or shorter, more or less formal, quillify can help with that!`,
+  `You may need to run this multiple times to get good results.`,
+  `Quillify can suggest potential figurative language and metaphors to use.`,
+  `Quillify can't edit long pieces of text yet, but we're working on it!`,
+  `Don't hesitate to use the chat bubble to give feedback and request new features!`,
+]
 
 function getRawText(htmlText: string) {
   const el = document.createElement("div")
@@ -24,11 +29,15 @@ const Home = () => {
   const [textUsed, setTextUsed] = useState("")
   const [prompt, setPrompt] = useLocalStorage("APP_PROMPT", "")
   const [text, setText] = useLocalStorage("APP_TEXT", "")
-  const [apiOutput, setApiOutput] = useState(null)
+  const [edits, setEdits] = useState(null)
+  // these are the edits that were generated, not the ones currently displayed:
+  const [generatedEdits, setGeneratedEdits] = useState(null)
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedEdit, setSelectedEdit] = useState(null)
   const textBody = useRef<HTMLDivElement>()
   const { setToast } = useToasts()
+  const [acceptedEdits, setAcceptedEdits] = useState([])
+  const [tip, setTip] = useState(null)
 
   const showError = () => {
     setToast({
@@ -48,9 +57,14 @@ const Home = () => {
     e
   ) => {
     try {
+      setTip(tips[Math.floor(Math.random() * tips.length)])
       setIsGenerating(true)
       setTextUsed(text)
       setSelectedEdit(null)
+      setEdits(null)
+      setAcceptedEdits([])
+      setGeneratedEdits(null)
+
       const rawText = getRawText(text)
       console.log("Calling OpenAI...")
 
@@ -69,7 +83,8 @@ const Home = () => {
       const { output } = data
       console.log("OpenAI replied...", output.text)
 
-      setApiOutput(data)
+      setEdits(data.edits)
+      setGeneratedEdits(data.edits)
       setIsGenerating(false)
     } catch (e) {
       console.log(e)
@@ -79,7 +94,7 @@ const Home = () => {
 
   useEffect(() => {
     if (textBody.current)
-      for (const edit of apiOutput.edits) {
+      for (const edit of edits) {
         try {
           console.log(textBody.current, textUsed, edit.original)
 
@@ -102,16 +117,23 @@ const Home = () => {
           console.log(e)
         }
       }
-  }, [apiOutput, textBody])
+  }, [edits, textBody])
 
   return (
     <div className="root">
       <Head>
-        <title>GPT-3 Writer | buildspace</title>
+        <title>quillfy</title>
       </Head>
       <div className="container">
         <div className="mr-auto mb-4">
-          <h1 className="text-4xl font-bold mb-1 manrope">Lizoy</h1>
+          <h1 className="text-4xl font-black tracking-tight mb-1 manrope">
+            <Image
+              src={feather}
+              alt="logo"
+              className="w-[1.3em] h-[1.3em] inline mr-1 mb-1"
+            />{" "}
+            quillfy
+          </h1>
           <div className="text-lg mt-0.5 text-gray-800 manrope">
             <h2>Get writing feedback from an expert AI</h2>
           </div>
@@ -119,52 +141,26 @@ const Home = () => {
 
         <div
           className={clsx(
-            `grid gap-4`,
-            (apiOutput && apiOutput.edits) || isGenerating
-              ? "md:grid-cols-[2fr_1fr]"
-              : ""
+            `grid gap-5`,
+            edits || isGenerating ? "md:grid-cols-[2fr_1fr]" : ""
           )}
         >
-          <TextEditor
-            text={text}
-            setText={setText}
-            edits={apiOutput ? apiOutput.edits : []}
-            setSelectedEdit={setSelectedEdit}
-          />
           <div>
-            {isGenerating ? (
-              <div className="text-gray-800">
-                generating edits, this can take a while...{" "}
-                <Skeleton height={150} count={3} />
-              </div>
-            ) : (
-              apiOutput &&
-              apiOutput.edits.map((edit, i) => (
-                <button
-                  key={i}
-                  className={clsx(
-                    `mb-8 p-4 shadow-md border rounded-xl text-left`,
-                    selectedEdit === i && "bg-gray-50 border-2 border-blue-300"
-                  )}
-                  onClick={() => setSelectedEdit(i)}
-                >
-                  <p className="text-sm line-through text-gray-600">
-                    {edit.original}
-                  </p>
-                  <p>{edit.edit}</p>
-                  <p className="text-sm text-gray-800 font-semibold mt-1">
-                    {selectedEdit === i && edit.suggestion}
-                  </p>
-                </button>
-              ))
-            )}
-          </div>
-          <div>
-            <div>
+            <TextEditor
+              text={text}
+              setText={setText}
+              edits={edits}
+              setSelectedEdit={setSelectedEdit}
+              acceptedEdits={acceptedEdits}
+              selectedEdit={selectedEdit}
+            />
+            <div className="mt-4">
               <Input
                 value={prompt}
                 placeholder="make it more professional"
+                label="Rewrite this text to"
                 scale={4 / 3}
+                width="100%"
                 onChange={(e) => setPrompt(e.target.value)}
               >
                 What do you want to improve?
@@ -182,6 +178,102 @@ const Home = () => {
                 Get Feedback
               </Button>
             </div>
+          </div>
+          <div>
+            {isGenerating ? (
+              <div className="text-gray-800 text-center">
+                <Skeleton height={150} count={2} />
+                <p className="mt-3 text-gray-700">
+                  Generating edits, this can take a while...
+                </p>
+                <p className="mt-3 font-medium">Tip: {tip}</p>
+              </div>
+            ) : (
+              edits &&
+              edits.map((edit, i) => (
+                <div
+                  key={edit.original}
+                  className={clsx(
+                    `mb-8 p-4 shadow-md border rounded-xl text-left`,
+                    selectedEdit === i && "bg-gray-50 border-2 border-blue-300"
+                  )}
+                  onClick={() => setSelectedEdit(i)}
+                >
+                  {edit.original === "N/A" ? (
+                    <p className="text-sm text-gray-600">Consider Adding:</p>
+                  ) : (
+                    <p className="text-sm line-through text-gray-600">
+                      {edit.original}
+                    </p>
+                  )}
+                  <p>{edit.edit}</p>
+                  <p className="text-sm text-gray-800 font-semibold mt-1">
+                    {selectedEdit === i && edit.suggestion}
+                  </p>
+                  {selectedEdit === i && edit.original !== "N/A" && (
+                    <div className="flex gap-3 mt-3 w-full">
+                      <Tooltip
+                        text={"Accepting will remove formatting"}
+                        type="dark"
+                        placement="bottomStart"
+                      >
+                        <Button
+                          className="inline"
+                          type="success"
+                          onClick={() => {
+                            setAcceptedEdits((prev) => [...prev, edit])
+                            setEdits((prev) => {
+                              const edits = [...prev]
+                              return edits.filter(
+                                (item) => item.original !== edit.original
+                              )
+                            })
+                          }}
+                        >
+                          Accept
+                        </Button>
+                      </Tooltip>
+                      <Button
+                        onClick={() => {
+                          setSelectedEdit(null)
+                          setEdits((prev) => {
+                            const edits = [...prev]
+                            return edits.filter(
+                              (item) => item.original !== edit.original
+                            )
+                          })
+                        }}
+                      >
+                        Reject
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+            {generatedEdits && generatedEdits.length === 0 && (
+              <>
+                We didn't find anything to improve, but feel free to generate
+                feedback again!&nbsp;
+                <button
+                  onClick={handleSubmit}
+                  className="text-blue-600 underline"
+                >
+                  Generate Feedback
+                </button>
+              </>
+            )}
+            {edits && edits.length === 0 && generatedEdits.length > 0 && (
+              <>
+                No edits left, feel free to generate some more.&nbsp;
+                <button
+                  onClick={handleSubmit}
+                  className="text-blue-600 underline"
+                >
+                  Generate Feedback
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
