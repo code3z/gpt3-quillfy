@@ -199,7 +199,7 @@ const Home = () => {
                   )}
                   onClick={() => setSelectedEdit(i)}
                 >
-                  {edit.original === "N/A" ? (
+                  {edit.original.trim() === "N/A" ? (
                     <p className="text-sm text-gray-600">Consider Adding:</p>
                   ) : (
                     <p className="text-sm line-through text-gray-600">
@@ -210,7 +210,7 @@ const Home = () => {
                   <p className="text-sm text-gray-800 font-semibold mt-1">
                     {selectedEdit === i && edit.suggestion}
                   </p>
-                  {selectedEdit === i && edit.original !== "N/A" && (
+                  {selectedEdit === i && edit.original.trim() !== "N/A" && (
                     <div className="flex gap-3 mt-3 w-full">
                       <Tooltip
                         text={"Accepting will remove formatting"}
