@@ -17,11 +17,15 @@ s1.setAttribute('crossorigin','*');
 s0.parentNode.insertBefore(s1,s0);
 })();`}
         </Script>
-        <script
+        <span
+          dangerouslySetInnerHTML={{
+            __html: `<script
           async
           src="https://cdn.volument.com/v1/volument-full.js"
-          token="35b16d2b76"
-        ></script>
+          token={"35b16d2b76"}
+        ></script>`,
+          }}
+        ></span>
       </Head>
       <body>
         <Main />
