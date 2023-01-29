@@ -19,6 +19,14 @@ const tips = [
   `Don't hesitate to use the chat bubble to give feedback and request new features!`,
 ]
 
+const suggestedPrompts = [
+  "make it more professional",
+  "use figurative language and metaphor",
+  "make the language flow better",
+  "make it more concise",
+  "make it longer",
+]
+
 function getRawText(htmlText: string) {
   const el = document.createElement("div")
   el.innerHTML = htmlText
@@ -158,13 +166,26 @@ const Home = () => {
               <Input
                 value={prompt}
                 placeholder="make it more professional"
-                label="Rewrite this text to"
+                label="Change this text to"
                 scale={4 / 3}
                 width="100%"
                 onChange={(e) => setPrompt(e.target.value)}
               >
                 What do you want to improve?
               </Input>
+              <div className="mt-3 space-x-1">
+                Try:{" "}
+                {suggestedPrompts.map((prompt, i) => (
+                  <button
+                    key={prompt}
+                    className="text-blue-700 hover:underline"
+                    onClick={() => setPrompt(prompt)}
+                  >
+                    {prompt}
+                    {i !== suggestedPrompts.length - 1 ? ", " : " "}
+                  </button>
+                ))}
+              </div>
             </div>
             <div className="flex">
               <Button

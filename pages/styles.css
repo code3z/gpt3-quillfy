@@ -4,6 +4,10 @@
 @tailwind components;
 @tailwind utilities;
 
+.tawk-icon-right {
+  display: none;
+}
+
 body {
   margin: 0;
   padding: 0;
