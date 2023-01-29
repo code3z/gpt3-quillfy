@@ -62,17 +62,19 @@ export default function TextEditor({
       })
       div.style.display = "block"
       div.style.zIndex = "9999"
-      div.style.lineHeight = "1.4"
-      // put margin on only the sides
+      // div.style.lineHeight = "1.4"
+      // put margin on only the sides, and even change TinyMCE's margin, this is not ideal but is a decent fix to unpredictable margins
       div.style.margin = "0 1rem"
+      editIframe.contentDocument.body.style.margin = "0 1rem"
+
       // there's a small offset on tinyMCE
-      div.style.marginTop = "2px"
+      //div.style.marginTop = "2px"
       div.style.pointerEvents = "none"
       div.contentEditable = "false"
       div.style.position = "absolute"
       div.style.top = "0"
       div.style.left = "0"
-      div.style.color = "transparent"
+      // div.style.color = "transparent"
       div.style.width = "unset"
       const style = document.createElement("style")
       style.innerHTML = `
