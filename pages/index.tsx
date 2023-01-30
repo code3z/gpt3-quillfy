@@ -43,7 +43,9 @@ const Home = () => {
   const [isGenerating, setIsGenerating] = useState(false)
   const [selectedEdit, setSelectedEdit] = useState(null)
   const textBody = useRef<HTMLDivElement>()
-  const { setToast } = useToasts()
+  const { setToast } = useToasts({
+    placement: "topRight",
+  })
   const [acceptedEdits, setAcceptedEdits] = useState([])
   const [tip, setTip] = useState(null)
 
@@ -65,6 +67,20 @@ const Home = () => {
     e
   ) => {
     try {
+      if (!prompt) {
+        setToast({
+          text: "Please enter a prompt",
+          type: "warning",
+          actions: [
+            {
+              name: "cancel",
+              passive: true,
+              handler: (event, cancel) => cancel(),
+            },
+          ],
+        })
+        return
+      }
       setTip(tips[Math.floor(Math.random() * tips.length)])
       setIsGenerating(true)
       setTextUsed(text)
