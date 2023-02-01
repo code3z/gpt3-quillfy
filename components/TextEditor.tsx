@@ -139,18 +139,10 @@ export default function TextEditor({
             },
             () => setSelectedEdit(parseInt(index))
           )
-          console.log(
-            index,
-            edit,
-            highlighter,
-            edit.original,
-            editorContent,
-            "lots of info for this highlight"
-          )
+
           // @ts-expect-error
           window.InstantSearch = InstantSearch
           highlighter.highlight()
-          console.log("highlighting", edit.original, highlighter)
         } catch (e) {
           console.log(e)
         }
@@ -192,6 +184,7 @@ export default function TextEditor({
           setText(editor.getContent())
         }}
         onChange={(evt, editor) => {
+          console.log("change")
           setEditorContent(editor.getContent())
           setText(editor.getContent())
         }}

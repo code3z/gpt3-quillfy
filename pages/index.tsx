@@ -24,7 +24,7 @@ const suggestedPrompts = [
   "use figurative language and metaphor",
   "make the language flow better",
   "make it more concise",
-  "make it longer",
+  "make it longer and more descriptive",
 ]
 
 function getRawText(htmlText: string) {

@@ -11,11 +11,11 @@ const editFilter = (edit) => {
 
 function parseEdits(text: string) {
   const parsedEdits = []
-  try {
-    const edits = text.split("\n")
-    let currentEdit = 0
+  const edits = text.split("\n")
+  let currentEdit = 0
 
-    for (const line of edits) {
+  for (const line of edits) {
+    try {
       console.log(line, currentEdit)
       if (line.startsWith("Edit #")) {
         currentEdit = parseInt(line.match(/Edit #(\d+):/)[1])
@@ -46,12 +46,12 @@ function parseEdits(text: string) {
       if (line.startsWith("Suggestion:")) {
         parsedEdits[currentEdit].suggestion = line.split("Suggestion: ")[1]
       }
+    } catch (e) {
+      console.error(e)
+      return parsedEdits.filter(editFilter)
     }
-    return parsedEdits.filter(editFilter)
-  } catch (e) {
-    console.error(e)
-    return parsedEdits.filter(editFilter)
   }
+  return parsedEdits.filter(editFilter)
 }
 
 const configuration = new Configuration({
@@ -61,7 +61,7 @@ const configuration = new Configuration({
 const openai = new OpenAIApi(configuration)
 
 const basePromptPrefix = (prompt: string, text: string) => `
-Prompt: Rewrite this text to use figurative language. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order.
+Prompt: Rewrite this text to use figurative language. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order. If listing an edit where something is being added and it absolutely does not have any relevant original text, write "Add after <preceding text>" for the original text.
 
 Original Text:
 Farewelling is all about celebrating a beautiful life, beautifully. Knowing how to write a eulogy is a part of keeping that person’s legacy alive and well. Write it with gusto. Deliver it with love and respect. And above all, know that whatever you write doesn’t have to be perfect. To craft a truly great eulogy, just follow the guidelines above. Combine a bit of structure with a dash of personal style, and you'll have a fitting tribute to share with friends and family.
@@ -102,7 +102,7 @@ Suggestion: Consider changing "friends and family" to "loved ones" in order to m
 
 END
 
-Prompt: Rewrite this text to use figurative language. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order.
+Prompt: Rewrite this text to use figurative language. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order. If listing an edit where something is being added and it absolutely does not have any relevant original text, write "Add after <preceding text>" for the original text.
 
 Original Text:
 Thiel begins with the contrarian premise that we live in an age of technological stagnation, even if we’re too distracted by shiny mobile devices to notice. Information technology has improved rapidly, but there is no reason why progress should be limited to computers or Silicon Valley. Progress can be achieved in any industry or area of business. It comes from the most important skill that every leader must master: learning to think for yourself.
@@ -138,7 +138,7 @@ Suggestion: Consider changing "unique" to "one-of-a-kind" in order to make it mo
 
 END
 
-Prompt: Rewrite this text to ${prompt}. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order. Do not list edits if nothing changed. If listing an edit where something is being added and it does not have original text, write "Add after <preceding text>" for the original text.
+Prompt: Rewrite this text to ${prompt}. Do not edit quotes. After writing the edit, list each edit made, including the original text, the edited text, and a detailed reason for editing. Write your reasons as suggestions (e.g., "Consider changing <something> in order to make it more interesting). You MUST list EVERY edit made to the text. List EVERY edit made to the text, in order. Do not list edits if nothing changed. If listing an edit where something is being added and it absolutely does not have any relevant original text, write "Add after <preceding text>" for the original text.
 
 Original Text:
 ${text}
