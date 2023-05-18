@@ -1,3 +1,3 @@
-# buildspace 
-### Welcome 👋
-This is the starter template for the [build your own AI writing assistant w/ GPT-3](https://buildspace.so/builds/ai-writer) project.
+# quillfy 
+
+I created this, a simple GPT-powered editor, to explore GPT when ChatGPT came out. I don't really use it anymore but it was a cool project :)
